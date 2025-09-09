@@ -1,0 +1,77 @@
+# Binaries
+bin/
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+
+# Test binary, built with `go test -c`
+*.test
+
+# Output of the go coverage tool, specifically when used with LiteIDE
+*.out
+
+# Dependency directories (remove the comment below to include it)
+# vendor/
+
+# Go workspace file
+go.work
+
+# Logs
+logs/
+*.log
+
+# Test files (keep the script but ignore generated files)
+test-files/*.bin
+test-files/*.dat
+test-files/*.tmp
+
+# Docker volumes and data
+files/
+
+# IDE and Editor files
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+Thumbs.db
+
+# OS generated files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# Temporary files
+*.tmp
+*.temp
+*.bak
+*.backup
+
+# Coverage reports
+coverage.out
+coverage.html
+
+# Build artifacts
+dist/
+build/
+
+# Environment files
+.env
+.env.local
+.env.*.local
+
+# Docker compose override files
+docker-compose.override.yml
+docker-compose.override.yaml
+
+# Wireshark capture files (for when you add them later)
+*.pcap
+*.pcapng
+captures/
