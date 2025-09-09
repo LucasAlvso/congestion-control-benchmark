@@ -1,0 +1,82 @@
+version: '3.8'
+
+services:
+  server:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile.server
+    container_name: tcp-server
+    ports:
+      - "8080:8080"
+    volumes:
+      - ../logs:/root/logs
+      - server_files:/root/files
+    networks:
+      - tcp-network
+
+  client1:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile.client
+    container_name: tcp-client1
+    depends_on:
+      - server
+    volumes:
+      - ../logs:/root/logs
+      - ../test-files:/root/test-files
+    networks:
+      - tcp-network
+    stdin_open: true
+    tty: true
+
+  client2:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile.client
+    container_name: tcp-client2
+    depends_on:
+      - server
+    volumes:
+      - ../logs:/root/logs
+      - ../test-files:/root/test-files
+    networks:
+      - tcp-network
+    stdin_open: true
+    tty: true
+
+  client3:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile.client
+    container_name: tcp-client3
+    depends_on:
+      - server
+    volumes:
+      - ../logs:/root/logs
+      - ../test-files:/root/test-files
+    networks:
+      - tcp-network
+    stdin_open: true
+    tty: true
+
+  client4:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile.client
+    container_name: tcp-client4
+    depends_on:
+      - server
+    volumes:
+      - ../logs:/root/logs
+      - ../test-files:/root/test-files
+    networks:
+      - tcp-network
+    stdin_open: true
+    tty: true
+
+volumes:
+  server_files:
+
+networks:
+  tcp-network:
+    driver: bridge
