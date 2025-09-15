@@ -17,6 +17,7 @@ type ConnectionLog struct {
 	Throughput    float64   `json:"throughput_bps"`
 	RemoteAddr    string    `json:"remote_addr"`
 	Operation     string    `json:"operation"`
+	TCPSamples    []TCPInfo `json:"tcp_samples,omitempty"` // TCP_INFO samples collected during connection
 }
 
 // Logger handles connection logging
@@ -70,5 +71,25 @@ func (l *Logger) PrintSummary(log *ConnectionLog) {
 	fmt.Printf("Bytes Sent: %d\n", log.BytesSent)
 	fmt.Printf("Bytes Received: %d\n", log.BytesReceived)
 	fmt.Printf("Throughput: %.2f bytes/sec\n", log.Throughput)
+
+	// Show TCP_INFO summary if available
+	if len(log.TCPSamples) > 0 {
+		fmt.Printf("\n--- TCP Metrics Summary ---\n")
+		fmt.Printf("TCP Samples Collected: %d\n", len(log.TCPSamples))
+
+		// Show first and last sample for comparison
+		first := log.TCPSamples[0]
+		last := log.TCPSamples[len(log.TCPSamples)-1]
+
+		fmt.Printf("Initial RTT: %.2f ms, Final RTT: %.2f ms\n",
+			float64(first.RTT)/1000.0, float64(last.RTT)/1000.0)
+		fmt.Printf("Initial cwnd: %d, Final cwnd: %d\n",
+			first.SndCwnd, last.SndCwnd)
+		fmt.Printf("Initial ssthresh: %d, Final ssthresh: %d\n",
+			first.SndSsthresh, last.SndSsthresh)
+		fmt.Printf("Total Retransmissions: %d\n", last.TotalRetrans)
+		fmt.Printf("---------------------------\n")
+	}
+
 	fmt.Printf("========================\n\n")
 }

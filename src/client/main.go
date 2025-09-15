@@ -121,19 +121,61 @@ func handlePut(address string, filename string, logger *common.Logger) {
 	}
 	defer conn.Close()
 
-	// Send PUT frame
+	// Initialize TCP_INFO collector
+	tcpCollector := common.NewTCPInfoCollector()
+
+	// Collect initial TCP_INFO sample
+	tcpCollector.CollectSample(conn)
+
+	// Send PUT frame with periodic TCP_INFO sampling
 	frame := protocol.CreatePutFrame(filename, fileData)
+
+	// For large files, collect samples during transmission
+	done := make(chan bool)
+	if len(fileData) > 1024*1024 { // Files larger than 1MB
+		go func() {
+			ticker := time.NewTicker(100 * time.Millisecond) // Sample every 100ms
+			defer ticker.Stop()
+
+			for {
+				select {
+				case <-ticker.C:
+					tcpCollector.CollectSample(conn)
+				case <-done:
+					return
+				}
+			}
+		}()
+	}
+
 	if err := protocol.WriteFrame(conn, frame); err != nil {
 		fmt.Printf("Failed to send PUT: %v\n", err)
+		if len(fileData) > 1024*1024 {
+			close(done)
+		}
 		return
 	}
+
+	// Collect sample after sending
+	tcpCollector.CollectSample(conn)
 
 	// Read response
 	response, err := protocol.ReadFrame(conn)
 	if err != nil {
 		fmt.Printf("Failed to read response: %v\n", err)
+		if len(fileData) > 1024*1024 {
+			close(done)
+		}
 		return
 	}
+
+	// Stop sampling goroutine
+	if len(fileData) > 1024*1024 {
+		close(done)
+	}
+
+	// Collect final sample
+	tcpCollector.CollectSample(conn)
 
 	endTime := time.Now()
 
@@ -143,7 +185,7 @@ func handlePut(address string, filename string, logger *common.Logger) {
 		fmt.Printf("File %s uploaded successfully\n", filename)
 	}
 
-	// Log connection
+	// Log connection with TCP_INFO samples
 	log := &common.ConnectionLog{
 		StartTime:     startTime,
 		EndTime:       endTime,
@@ -151,6 +193,7 @@ func handlePut(address string, filename string, logger *common.Logger) {
 		BytesReceived: int64(5 + len(response.Payload)),
 		RemoteAddr:    address,
 		Operation:     fmt.Sprintf("PUT %s", filename),
+		TCPSamples:    tcpCollector.GetSamples(),
 	}
 	logger.LogConnection(log)
 	logger.PrintSummary(log)
