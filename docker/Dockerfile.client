@@ -7,7 +7,7 @@ RUN go mod download
 RUN go build -o client ./src/client
 
 FROM alpine:latest
-RUN apk --no-cache add ca-certificates
+RUN apk --no-cache add ca-certificates iproute2 tcpdump bash
 WORKDIR /root/
 
 COPY --from=builder /app/client .
