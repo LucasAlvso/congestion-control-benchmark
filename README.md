@@ -1,6 +1,5 @@
 # TCP Congestion Control Benchmark
 
-
 ## Usage
 
 ### Generate Test Files
@@ -9,31 +8,15 @@
 ./scripts/generate-test-file.sh 200MB
 ```
 
-### Server Application
-```bash
-./bin/server [options]
-```
-
-**Options:**
+### Startup Options
 - `-port <port>`: Server listening port (default: 8080)
 - `-dir <directory>`: File storage directory (default: ./files)  
 - `-log-dir <directory>`: Connection logs directory (default: ./logs)
 
-### Client Application
-```bash
-./bin/client [options]
-```
-
-**Options:**
-- `-host <hostname>`: Server hostname (default: localhost)
-- `-port <port>`: Server port (default: 8080)
-- `-log-dir <directory>`: Connection logs directory (default: ./logs)
-
-**Interactive Commands:**
+### Interactive Commands
 - `list`: List files available on server
 - `put <filename>`: Upload file to server  
 - `quit`: Close connection and exit
-
 
 ### Multi-Client
 ```bash
@@ -73,8 +56,6 @@ Server -> Client: ACK/ERROR
 Client -> Server: QUIT
 Server -> Client: Connection closes
 ```
-
-## Data Collection & Analysis
 
 ## System Requirements
 - Go 1.19 or later
