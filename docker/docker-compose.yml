@@ -26,6 +26,8 @@ services:
       - ../test-files:/root/test-files
     networks:
       - tcp-network
+    cap_add:
+      - NET_ADMIN
     stdin_open: true
     tty: true
 
@@ -41,6 +43,8 @@ services:
       - ../test-files:/root/test-files
     networks:
       - tcp-network
+    cap_add:
+      - NET_ADMIN
     stdin_open: true
     tty: true
 
@@ -56,6 +60,8 @@ services:
       - ../test-files:/root/test-files
     networks:
       - tcp-network
+    cap_add:
+      - NET_ADMIN
     stdin_open: true
     tty: true
 
@@ -71,6 +77,8 @@ services:
       - ../test-files:/root/test-files
     networks:
       - tcp-network
+    cap_add:
+      - NET_ADMIN
     stdin_open: true
     tty: true
 
