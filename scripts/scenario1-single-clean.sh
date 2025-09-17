@@ -17,12 +17,15 @@ echo "Running Scenario 1: Single client, clean network (with captures)"
 docker-compose -f docker/docker-compose.yml up --build -d server client1
 sleep 3
 
+# Ensure server storage and logs are clean for this scenario
+docker exec tcp-server /bin/sh -c "rm -rf /root/files/* /root/logs/${SCENARIO_NAME} || true"
+
 # Start tcpdump captures inside server and client containers
 docker exec tcp-server /root/scripts/manage_capture.sh start "$SCENARIO_NAME" server || true
 docker exec tcp-client1 /root/scripts/manage_capture.sh start "$SCENARIO_NAME" client || true
 
-# Run client upload (exec into existing client container)
-docker exec tcp-client1 bash -c "echo 'put test-files/test_200MB.bin' | ./client --host=server --port=8080 --log-dir=./logs"
+# Run client upload (exec into existing client container) with timeout guard
+docker exec tcp-client1 bash -c "timeout 900s bash -c \"echo 'put test-files/test_200MB.bin' | ./client --host=server --port=8080 --log-dir=./logs\""
 
 # Stop captures
 docker exec tcp-client1 /root/scripts/manage_capture.sh stop "$SCENARIO_NAME" client || true

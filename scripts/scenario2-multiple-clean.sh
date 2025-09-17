@@ -17,6 +17,9 @@ echo "Running Scenario 2: Multiple clients, clean network (with captures)"
 docker-compose -f docker/docker-compose.yml up --build -d server client1 client2 client3
 sleep 3
 
+# Ensure server storage and logs are clean for this scenario
+docker exec tcp-server /bin/sh -c "rm -rf /root/files/* /root/logs/${SCENARIO_NAME} || true"
+
 # Start captures on server and clients
 docker exec tcp-server /root/scripts/manage_capture.sh start "$SCENARIO_NAME" server || true
 docker exec tcp-client1 /root/scripts/manage_capture.sh start "$SCENARIO_NAME" client 1 || true
@@ -24,9 +27,9 @@ docker exec tcp-client2 /root/scripts/manage_capture.sh start "$SCENARIO_NAME" c
 docker exec tcp-client3 /root/scripts/manage_capture.sh start "$SCENARIO_NAME" client 3 || true
 
 # Run clients concurrently (exec into containers)
-docker exec -d tcp-client1 /bin/sh -c "echo 'put test-files/test_200MB.bin' | ./client --host=server --port=8080 --log-dir=./logs"
-docker exec -d tcp-client2 /bin/sh -c "echo 'put test-files/test_200MB.bin' | ./client --host=server --port=8080 --log-dir=./logs"
-docker exec -d tcp-client3 /bin/sh -c "echo 'put test-files/test_200MB.bin' | ./client --host=server --port=8080 --log-dir=./logs"
+docker exec -d tcp-client1 /bin/sh -c "timeout 900s sh -c \"echo 'put test-files/test_200MB.bin' | ./client --host=server --port=8080 --log-dir=./logs\""
+docker exec -d tcp-client2 /bin/sh -c "timeout 900s sh -c \"echo 'put test-files/test_200MB.bin' | ./client --host=server --port=8080 --log-dir=./logs\""
+docker exec -d tcp-client3 /bin/sh -c "timeout 900s sh -c \"echo 'put test-files/test_200MB.bin' | ./client --host=server --port=8080 --log-dir=./logs\""
 
 # Wait for clients to finish by polling logs (simple approach: wait until client logs contain transfer completion or container exits)
 # Wait for a conservative timeout (e.g., 10 minutes) to avoid infinite waits

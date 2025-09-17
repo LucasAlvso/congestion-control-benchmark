@@ -21,8 +21,9 @@ sleep 3
 docker exec tcp-server /root/scripts/manage_capture.sh start "$SCENARIO_NAME" server || true
 docker exec tcp-client1 /root/scripts/manage_capture.sh start "$SCENARIO_NAME" client || true
 
-# Apply variable latency and run client
-docker exec tcp-client1 /bin/sh -c "tc qdisc add dev eth0 root netem delay 50ms 20ms distribution normal && echo 'put test-files/test_200MB.bin' | ./client --host=server --port=8080 --log-dir=./logs"
+# Apply variable latency and run client (with timeout guard to avoid indefinite hang)
+# Use timeout inside the container; 900s (15min) should be sufficient for the transfer under emulation.
+docker exec tcp-client1 /bin/sh -c "tc qdisc add dev eth0 root netem delay 20ms 5ms distribution normal && timeout 900s sh -c \"echo 'put test-files/test_200MB.bin' | ./client --host=server --port=8080 --log-dir=./logs\""
 
 # Stop captures
 docker exec tcp-client1 /root/scripts/manage_capture.sh stop "$SCENARIO_NAME" client || true

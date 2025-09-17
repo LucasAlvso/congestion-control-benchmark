@@ -26,7 +26,8 @@ for p in "$PCAP_DIR"/*.pcap; do
 
   # Export fields with relative time and TCP metrics
   # Fields: frame.time_relative, tcp.seq, tcp.ack, tcp.len, tcp.analysis.bytes_in_flight
-  tshark -r "$p" -T fields \
+  # Filter to TCP frames that contain either tcp.seq or tcp.analysis.bytes_in_flight to avoid empty CSVs.
+  tshark -r "$p" -Y "tcp && (tcp.seq || tcp.analysis.bytes_in_flight)" -T fields \
     -e frame.time_relative \
     -e tcp.seq \
     -e tcp.ack \

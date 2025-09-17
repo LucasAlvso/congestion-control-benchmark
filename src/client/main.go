@@ -2,9 +2,10 @@ package main
 
 import (
 	"bufio"
+	"encoding/binary"
 	"flag"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"net"
 	"os"
 	"strings"
@@ -107,12 +108,20 @@ func handleList(address string, logger *common.Logger) {
 func handlePut(address string, filename string, logger *common.Logger) {
 	startTime := time.Now()
 
-	// Read file
-	fileData, err := ioutil.ReadFile(filename)
+	// Open file for streaming
+	f, err := os.Open(filename)
 	if err != nil {
-		fmt.Printf("Failed to read file %s: %v\n", filename, err)
+		fmt.Printf("Failed to open file %s: %v\n", filename, err)
 		return
 	}
+	defer f.Close()
+
+	fi, err := f.Stat()
+	if err != nil {
+		fmt.Printf("Failed to stat file %s: %v\n", filename, err)
+		return
+	}
+	filesize := fi.Size()
 
 	conn, err := net.Dial("tcp", address)
 	if err != nil {
@@ -123,16 +132,16 @@ func handlePut(address string, filename string, logger *common.Logger) {
 
 	// Initialize TCP_INFO collector
 	tcpCollector := common.NewTCPInfoCollector()
-
-	// Collect initial TCP_INFO sample
 	tcpCollector.CollectSample(conn)
 
-	// Send PUT frame with periodic TCP_INFO sampling
-	frame := protocol.CreatePutFrame(filename, fileData)
+	// Prepare header: payload = [filename_len:4][filename][filedata]
+filenameBytes := []byte(filename)
+payloadLen := uint32(4 + len(filenameBytes) + int(filesize))
 
-	// For large files, collect samples during transmission
+	// Start sampling goroutine for large files
 	done := make(chan bool)
-	if len(fileData) > 1024*1024 { // Files larger than 1MB
+	shouldSample := filesize > 1024*1024
+	if shouldSample {
 		go func() {
 			ticker := time.NewTicker(100 * time.Millisecond) // Sample every 100ms
 			defer ticker.Stop()
@@ -148,13 +157,72 @@ func handlePut(address string, filename string, logger *common.Logger) {
 		}()
 	}
 
-	if err := protocol.WriteFrame(conn, frame); err != nil {
-		fmt.Printf("Failed to send PUT: %v\n", err)
-		if len(fileData) > 1024*1024 {
+	// Send opcode and payload length
+	if err := binary.Write(conn, binary.BigEndian, protocol.OpPut); err != nil {
+		fmt.Printf("Failed to write opcode: %v\n", err)
+		if shouldSample {
 			close(done)
 		}
 		return
 	}
+	if err := binary.Write(conn, binary.BigEndian, payloadLen); err != nil {
+		fmt.Printf("Failed to write payload length: %v\n", err)
+		if shouldSample {
+			close(done)
+		}
+		return
+	}
+
+	// Send filename length and filename bytes
+	if err := binary.Write(conn, binary.BigEndian, uint32(len(filenameBytes))); err != nil {
+		fmt.Printf("Failed to write filename length: %v\n", err)
+		if shouldSample {
+			close(done)
+		}
+		return
+	}
+	if _, err := conn.Write(filenameBytes); err != nil {
+		fmt.Printf("Failed to write filename: %v\n", err)
+		if shouldSample {
+			close(done)
+		}
+		return
+	}
+
+	// Stream file content in chunks and show progress
+	const chunkSize = 64 * 1024
+	var written int64 = 0
+	total := int64(payloadLen) - int64(4+len(filenameBytes)) // file size
+
+	fmt.Printf("Uploading %s (%d bytes)\n", filename, filesize)
+	for {
+		buf := make([]byte, chunkSize)
+		n, readErr := f.Read(buf)
+		if n > 0 {
+			wn, writeErr := conn.Write(buf[:n])
+			if writeErr != nil {
+				fmt.Printf("\nFailed to send file chunk: %v\n", writeErr)
+				if shouldSample {
+					close(done)
+				}
+				return
+			}
+			written += int64(wn)
+			percent := (float64(written) / float64(total)) * 100.0
+			fmt.Printf("\rProgress: %d/%d bytes (%.1f%%)", written, total, percent)
+		}
+		if readErr == io.EOF {
+			break
+		}
+		if readErr != nil {
+			fmt.Printf("\nFailed to read file: %v\n", readErr)
+			if shouldSample {
+				close(done)
+			}
+			return
+		}
+	}
+	fmt.Println("\nUpload complete")
 
 	// Collect sample after sending
 	tcpCollector.CollectSample(conn)
@@ -163,14 +231,14 @@ func handlePut(address string, filename string, logger *common.Logger) {
 	response, err := protocol.ReadFrame(conn)
 	if err != nil {
 		fmt.Printf("Failed to read response: %v\n", err)
-		if len(fileData) > 1024*1024 {
+		if shouldSample {
 			close(done)
 		}
 		return
 	}
 
 	// Stop sampling goroutine
-	if len(fileData) > 1024*1024 {
+	if shouldSample {
 		close(done)
 	}
 
@@ -189,8 +257,8 @@ func handlePut(address string, filename string, logger *common.Logger) {
 	log := &common.ConnectionLog{
 		StartTime:     startTime,
 		EndTime:       endTime,
-		BytesSent:     int64(5 + len(frame.Payload)), // opcode + length + payload
-		BytesReceived: int64(5 + len(response.Payload)),
+		BytesSent:     int64(5) + int64(payloadLen), // opcode + length (5) + payload
+		BytesReceived: int64(5) + int64(len(response.Payload)),
 		RemoteAddr:    address,
 		Operation:     fmt.Sprintf("PUT %s", filename),
 		TCPSamples:    tcpCollector.GetSamples(),

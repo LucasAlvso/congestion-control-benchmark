@@ -24,9 +24,9 @@ docker exec tcp-client2 /root/scripts/manage_capture.sh start "$SCENARIO_NAME" c
 docker exec tcp-client3 /root/scripts/manage_capture.sh start "$SCENARIO_NAME" client 3 || true
 
 # Run clients concurrently with packet loss applied inside each client container
-docker exec -d tcp-client1 /bin/sh -c "tc qdisc add dev eth0 root netem loss 0.1% && echo 'put test-files/test_200MB.bin' | ./client --host=server --port=8080 --log-dir=./logs"
-docker exec -d tcp-client2 /bin/sh -c "tc qdisc add dev eth0 root netem loss 0.1% && echo 'put test-files/test_200MB.bin' | ./client --host=server --port=8080 --log-dir=./logs"
-docker exec -d tcp-client3 /bin/sh -c "tc qdisc add dev eth0 root netem loss 0.1% && echo 'put test-files/test_200MB.bin' | ./client --host=server --port=8080 --log-dir=./logs"
+docker exec -d tcp-client1 /bin/sh -c "for i in 1 2 3; do tc qdisc add dev eth0 root netem loss 0.1% && break || sleep 1; done && timeout 900s sh -c \"echo 'put test-files/test_200MB.bin' | ./client --host=server --port=8080 --log-dir=./logs\""
+docker exec -d tcp-client2 /bin/sh -c "for i in 1 2 3; do tc qdisc add dev eth0 root netem loss 0.1% && break || sleep 1; done && timeout 900s sh -c \"echo 'put test-files/test_200MB.bin' | ./client --host=server --port=8080 --log-dir=./logs\""
+docker exec -d tcp-client3 /bin/sh -c "for i in 1 2 3; do tc qdisc add dev eth0 root netem loss 0.1% && break || sleep 1; done && timeout 900s sh -c \"echo 'put test-files/test_200MB.bin' | ./client --host=server --port=8080 --log-dir=./logs\""
 
 # Wait for clients to finish (timeout guard)
 TIMEOUT=600

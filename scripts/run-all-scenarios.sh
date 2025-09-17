@@ -43,9 +43,20 @@ echo "Running Scenario 4b..."
 ./scripts/scenario4b-multiple-latency.sh
 echo ""
 
-# Consolidate all results
+# Consolidate all results safely (explicit scenario directories)
 echo "Consolidating results..."
-cp -r ./results/scenario* $MASTER_RESULTS_DIR/
+mkdir -p "$MASTER_RESULTS_DIR/scenario1-single-clean"
+mkdir -p "$MASTER_RESULTS_DIR/scenario2-multiple-clean"
+mkdir -p "$MASTER_RESULTS_DIR/scenario3a-single-loss"
+mkdir -p "$MASTER_RESULTS_DIR/scenario3b-single-latency"
+mkdir -p "$MASTER_RESULTS_DIR/scenario4a-multiple-loss"
+mkdir -p "$MASTER_RESULTS_DIR/scenario4b-multiple-latency"
+cp -r ./results/scenario1-single-clean "$MASTER_RESULTS_DIR/" || true
+cp -r ./results/scenario2-multiple-clean "$MASTER_RESULTS_DIR/" || true
+cp -r ./results/scenario3a-single-loss "$MASTER_RESULTS_DIR/" || true
+cp -r ./results/scenario3b-single-latency "$MASTER_RESULTS_DIR/" || true
+cp -r ./results/scenario4a-multiple-loss "$MASTER_RESULTS_DIR/" || true
+cp -r ./results/scenario4b-multiple-latency "$MASTER_RESULTS_DIR/" || true
 
 # Generate summary
 cat > $MASTER_RESULTS_DIR/test_summary.txt <<EOF
