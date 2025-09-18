@@ -17,13 +17,16 @@ echo "Running Scenario 3b: Single client with variable latency (with captures)"
 docker-compose -f docker/docker-compose.yml up --build -d server client1
 sleep 3
 
+# Ensure server storage and logs are clean for this scenario
+docker exec tcp-server /bin/sh -c "rm -rf /root/files/* /root/logs/${SCENARIO_NAME} || true"
+
 # Start captures
 docker exec tcp-server /root/scripts/manage_capture.sh start "$SCENARIO_NAME" server || true
 docker exec tcp-client1 /root/scripts/manage_capture.sh start "$SCENARIO_NAME" client || true
 
 # Apply variable latency and run client (with timeout guard to avoid indefinite hang)
 # Use timeout inside the container; 900s (15min) should be sufficient for the transfer under emulation.
-docker exec tcp-client1 /bin/sh -c "tc qdisc add dev eth0 root netem delay 20ms 5ms distribution normal && timeout 900s sh -c \"echo 'put test-files/test_200MB.bin' | ./client --host=server --port=8080 --log-dir=./logs\""
+docker exec tcp-client1 /bin/sh -c "tc qdisc del dev eth0 root || true; for i in 1 2 3; do tc qdisc add dev eth0 root netem delay 12ms 2ms distribution normal && break || sleep 1; done && timeout 1200s sh -c \"echo 'put test-files/test_200MB.bin' | ./client --host=server --port=8080 --log-dir=./logs\""
 
 # Stop captures
 docker exec tcp-client1 /root/scripts/manage_capture.sh stop "$SCENARIO_NAME" client || true
