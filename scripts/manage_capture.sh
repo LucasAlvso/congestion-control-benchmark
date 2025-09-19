@@ -33,7 +33,8 @@ PID_PATH="${PCAP_DIR}/${BASENAME}.pid"
 if [[ "$ACTION" == "start" ]]; then
   # If a capture is already running for this role/id, report and do not start another.
   if [[ -f "$PID_PATH" ]]; then
-    OLD_PID=$(cat "$PID_PATH")
+    # pidfile stores PID on the first line; handle legacy single-line pidfiles too.
+    OLD_PID=$(sed -n '1p' "$PID_PATH")
     if kill -0 "$OLD_PID" >/dev/null 2>&1; then
       echo "Capture already running with pid $OLD_PID for $BASENAME (pidfile: $PID_PATH)"
       exit 0
@@ -51,22 +52,68 @@ if [[ "$ACTION" == "start" ]]; then
   # Start tcpdump capturing only TCP packets on all interfaces.
   # Use -s 0 to capture full packets, -n to avoid name resolution, -U for packet-buffered output.
   nohup tcpdump -i any -s 0 -n -U tcp -w "$PCAP_PATH" >/dev/null 2>&1 &
-  echo $! > "$PID_PATH"
-  sleep 0.1
-  echo "Started capture: $PCAP_PATH (pid $(cat $PID_PATH))"
-  exit 0
+  PID=$!
+
+  # Save PID and PCAP path in pidfile (PID on first line, PCAP path on second).
+  # This allows the stop action to know the exact file that was created.
+  printf "%s\n%s\n" "$PID" "$PCAP_PATH" > "$PID_PATH"
+
+  # Give the process a moment to start and verify it's running.
+  sleep 0.2
+  if kill -0 "$PID" >/dev/null 2>&1; then
+    # Verify the pcap file is being written to. Wait up to 5s for the file
+    # to appear and grow; if it doesn't, warn the user but continue so tests
+    # don't block indefinitely.
+    COUNT=0
+    LAST_SIZE=0
+    while [ $COUNT -lt 10 ]; do
+      if [ -f "$PCAP_PATH" ]; then
+        SIZE=$(stat -c%s "$PCAP_PATH" 2>/dev/null || echo 0)
+        if [ "$SIZE" -gt 0 ]; then
+          # file has started growing
+          echo "Started capture: $PCAP_PATH (pid $PID)"
+          exit 0
+        fi
+        LAST_SIZE=$SIZE
+      fi
+      COUNT=$((COUNT+1))
+      sleep 0.5
+    done
+
+    echo "Started tcpdump pid $PID but pcap file did not grow within timeout: $PCAP_PATH"
+    echo "Proceeding, but inspect the capture after the run."
+    exit 0
+  else
+    echo "Failed to start tcpdump (pid $PID); check container logs"
+    rm -f "$PID_PATH"
+    exit 1
+  fi
 fi
 
 if [[ "$ACTION" == "stop" ]]; then
   if [[ -f "$PID_PATH" ]]; then
-    PID=$(cat "$PID_PATH")
-    if kill -0 "$PID" >/dev/null 2>&1; then
-      kill "$PID"
-      sleep 1
-      echo "Stopped capture pid=$PID for $PCAP_PATH"
-    else
-      echo "No running tcpdump with pid $PID"
+    # pidfile format: first line = PID, second line = PCAP path
+    PID=$(sed -n '1p' "$PID_PATH" | tr -d '[:space:]')
+    PCAP_FILE=$(sed -n '2p' "$PID_PATH" | tr -d '[:space:]')
+
+    # Fallback: if PCAP_FILE is empty, use the computed PCAP_PATH (legacy support)
+    if [[ -z "$PCAP_FILE" ]]; then
+      PCAP_FILE="$PCAP_PATH"
     fi
+
+    if [[ -n "$PID" ]] && kill -0 "$PID" >/dev/null 2>&1; then
+      # attempt graceful termination first
+      kill "$PID" >/dev/null 2>&1 || true
+      sleep 1
+      # if still running, force kill
+      if kill -0 "$PID" >/dev/null 2>&1; then
+        kill -9 "$PID" >/dev/null 2>&1 || true
+      fi
+      echo "Stopped capture pid=$PID for $PCAP_FILE"
+    else
+      echo "No running tcpdump with pid ${PID:-'(none)'}; expected pcap: $PCAP_FILE"
+    fi
+
     rm -f "$PID_PATH"
     exit 0
   else

@@ -26,14 +26,36 @@ for p in "$PCAP_DIR"/*.pcap; do
 
   # Export fields with relative time and TCP metrics
   # Fields: frame.time_relative, tcp.seq, tcp.ack, tcp.len, tcp.analysis.bytes_in_flight
-  # Filter to TCP frames that contain either tcp.seq or tcp.analysis.bytes_in_flight to avoid empty CSVs.
-  tshark -r "$p" -Y "tcp && (tcp.seq || tcp.analysis.bytes_in_flight)" -T fields \
+  # First attempt: filter to TCP frames that carry payload or have bytes_in_flight
+  # analysis. This reduces CSV size in normal transfers, but may miss some
+  # captures (eg. if client-side capture contains mostly ACKs). If the CSV
+  # ends up header-only, retry with a broader 'tcp' display filter.
+  tshark -r "$p" -Y "tcp && (tcp.len > 0 || tcp.analysis.bytes_in_flight)" -T fields \
     -e frame.time_relative \
     -e tcp.seq \
     -e tcp.ack \
     -e tcp.len \
     -e tcp.analysis.bytes_in_flight \
     -E header=y -E separator=, -E quote=d > "$csv" 2>/dev/null || true
+
+  # If CSV is empty (only header) then retry using a broader tcp filter so the
+  # plotting step gets a chance to extract sequence/ACK samples or at least
+  # produce more informative CSV rows (some traces have ACK-only packets).
+  if [ "$(wc -l < "$csv" 2>/dev/null || echo 0)" -le 1 ]; then
+    echo "CSV appears header-only for $p — retrying with broader 'tcp' filter"
+    tshark -r "$p" -Y "tcp" -T fields \
+      -e frame.time_relative \
+      -e tcp.seq \
+      -e tcp.ack \
+      -e tcp.len \
+      -e tcp.analysis.bytes_in_flight \
+      -E header=y -E separator=, -E quote=d > "$csv" 2>/dev/null || true
+  fi
+
+  # Final sanity check: warn if still empty so user can inspect the original pcap.
+  if [ "$(wc -l < "$csv" 2>/dev/null || echo 0)" -le 1 ]; then
+    echo "Warning: CSV for $p contains no usable TCP samples (header only). Inspect $p with tshark/wireshark."
+  fi
 
   # Call python plotting script (plot_pcap.py must exist in /root/scripts)
   if [[ -f /root/scripts/plot_pcap.py ]]; then
