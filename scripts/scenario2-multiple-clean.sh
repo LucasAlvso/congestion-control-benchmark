@@ -25,6 +25,8 @@ docker exec tcp-server /root/scripts/manage_capture.sh start "$SCENARIO_NAME" se
 docker exec tcp-client1 /root/scripts/manage_capture.sh start "$SCENARIO_NAME" client 1 || true
 docker exec tcp-client2 /root/scripts/manage_capture.sh start "$SCENARIO_NAME" client 2 || true
 docker exec tcp-client3 /root/scripts/manage_capture.sh start "$SCENARIO_NAME" client 3 || true
+# Ensure captures have time to initialize before starting the client transfers
+sleep 0.5
 
 # Run clients concurrently (exec into containers)
 docker exec -d tcp-client1 /bin/sh -c "timeout 900s sh -c \"echo 'put test-files/test_200MB.bin' | ./client --host=server --port=8080 --log-dir=./logs\""

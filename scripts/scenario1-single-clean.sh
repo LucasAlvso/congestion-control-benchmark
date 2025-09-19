@@ -23,6 +23,8 @@ docker exec tcp-server /bin/sh -c "rm -rf /root/files/* /root/logs/${SCENARIO_NA
 # Start tcpdump captures inside server and client containers
 docker exec tcp-server /root/scripts/manage_capture.sh start "$SCENARIO_NAME" server || true
 docker exec tcp-client1 /root/scripts/manage_capture.sh start "$SCENARIO_NAME" client || true
+# Ensure captures have time to initialize before starting the client transfer
+sleep 0.5
 
 # Run client upload (exec into existing client container) with timeout guard
 docker exec tcp-client1 bash -c "timeout 900s bash -c \"echo 'put test-files/test_200MB.bin' | ./client --host=server --port=8080 --log-dir=./logs\""
