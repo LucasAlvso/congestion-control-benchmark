@@ -4,6 +4,12 @@ services:
       context: ..
       dockerfile: docker/Dockerfile.server
     container_name: tcp-server
+    environment:
+      - SCENARIO=${SCENARIO:-}
+      - CONTAINER_NAME=tcp-server
+    cap_add:
+      - NET_ADMIN
+      - NET_RAW
     ports:
       - "8080:8080"
     volumes:
@@ -17,6 +23,9 @@ services:
       context: ..
       dockerfile: docker/Dockerfile.client
     container_name: tcp-client1
+    environment:
+      - SCENARIO=${SCENARIO:-}
+      - CONTAINER_NAME=tcp-client1
     depends_on:
       - server
     volumes:
@@ -34,6 +43,9 @@ services:
       context: ..
       dockerfile: docker/Dockerfile.client
     container_name: tcp-client2
+    environment:
+      - SCENARIO=${SCENARIO:-}
+      - CONTAINER_NAME=tcp-client2
     depends_on:
       - server
     volumes:
@@ -51,6 +63,9 @@ services:
       context: ..
       dockerfile: docker/Dockerfile.client
     container_name: tcp-client3
+    environment:
+      - SCENARIO=${SCENARIO:-}
+      - CONTAINER_NAME=tcp-client3
     depends_on:
       - server
     volumes:
@@ -68,6 +83,9 @@ services:
       context: ..
       dockerfile: docker/Dockerfile.client
     container_name: tcp-client4
+    environment:
+      - SCENARIO=${SCENARIO:-}
+      - CONTAINER_NAME=tcp-client4
     depends_on:
       - server
     volumes:

@@ -14,7 +14,7 @@ echo "Running Scenario 1: Single client, clean network (with captures)"
 ./scripts/generate-test-file.sh 200MB
 
 # Start server and client containers so we can exec into them (client will be idle until we run command)
-docker-compose -f docker/docker-compose.yml up --build -d server client1
+SCENARIO="$SCENARIO_NAME" docker-compose -f docker/docker-compose.yml up --build -d server client1
 sleep 3
 
 # Ensure server storage and logs are clean for this scenario
@@ -34,10 +34,8 @@ docker exec tcp-client1 /root/scripts/manage_capture.sh stop "$SCENARIO_NAME" cl
 docker exec tcp-server /root/scripts/manage_capture.sh stop "$SCENARIO_NAME" server || true
 
 
-# Copy logs & graphs from containers (logs are also mounted to ../logs, but keep cp for compatibility)
-mkdir -p "$RESULTS_DIR/server_logs" "$RESULTS_DIR/client_logs"
-docker cp tcp-server:/root/logs "$RESULTS_DIR/server_logs" 2>/dev/null || true
-docker cp tcp-client1:/root/logs "$RESULTS_DIR/client_logs" 2>/dev/null || true
+# Do not consolidate logs to results — tests will use the files under the shared logs mount.
+# Logs are already available under ./logs on the host via the shared volume.
 
 # Cleanup
 docker-compose -f docker/docker-compose.yml down

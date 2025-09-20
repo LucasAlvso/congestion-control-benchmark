@@ -13,8 +13,8 @@ echo "Running Scenario 2: Multiple clients, clean network (with captures)"
 # Generate test file if needed
 ./scripts/generate-test-file.sh 200MB
 
-# Start server and client containers
-docker-compose -f docker/docker-compose.yml up --build -d server client1 client2 client3
+# Start server and client containers (export SCENARIO so containers receive it via docker-compose)
+SCENARIO="$SCENARIO_NAME" docker-compose -f docker/docker-compose.yml up --build -d server client1 client2 client3
 sleep 3
 
 # Ensure server storage and logs are clean for this scenario
@@ -67,12 +67,8 @@ docker exec tcp-client2 /root/scripts/manage_capture.sh stop "$SCENARIO_NAME" cl
 docker exec tcp-client3 /root/scripts/manage_capture.sh stop "$SCENARIO_NAME" client 3 || true
 docker exec tcp-server /root/scripts/manage_capture.sh stop "$SCENARIO_NAME" server || true
 
-# Copy logs & graphs from containers
-mkdir -p "$RESULTS_DIR/server_logs" "$RESULTS_DIR/client1_logs" "$RESULTS_DIR/client2_logs" "$RESULTS_DIR/client3_logs"
-docker cp tcp-server:/root/logs "$RESULTS_DIR/server_logs" 2>/dev/null || true
-docker cp tcp-client1:/root/logs "$RESULTS_DIR/client1_logs" 2>/dev/null || true
-docker cp tcp-client2:/root/logs "$RESULTS_DIR/client2_logs" 2>/dev/null || true
-docker cp tcp-client3:/root/logs "$RESULTS_DIR/client3_logs" 2>/dev/null || true
+# Do not consolidate logs to results — tests will use the files under the shared logs mount.
+# Logs are already available under ./logs on the host via the shared volume.
 
 # Cleanup
 docker-compose -f docker/docker-compose.yml down

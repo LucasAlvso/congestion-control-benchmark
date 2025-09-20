@@ -13,8 +13,8 @@ echo "Running Scenario 3b: Single client with variable latency (with captures)"
 # Generate test file if needed
 ./scripts/generate-test-file.sh 200MB
 
-# Start server and client containers
-docker-compose -f docker/docker-compose.yml up --build -d server client1
+# Start server and client containers (export SCENARIO so containers receive it via docker-compose)
+SCENARIO="$SCENARIO_NAME" docker-compose -f docker/docker-compose.yml up --build -d server client1
 sleep 3
 
 # Ensure server storage and logs are clean for this scenario
@@ -36,10 +36,8 @@ docker exec tcp-client1 /bin/sh -c "tc qdisc del dev eth0 root 2>/dev/null || tr
 docker exec tcp-client1 /root/scripts/manage_capture.sh stop "$SCENARIO_NAME" client || true
 docker exec tcp-server /root/scripts/manage_capture.sh stop "$SCENARIO_NAME" server || true
 
-# Copy logs & graphs
-mkdir -p "$RESULTS_DIR/server_logs" "$RESULTS_DIR/client_logs"
-docker cp tcp-server:/root/logs "$RESULTS_DIR/server_logs" 2>/dev/null || true
-docker cp tcp-client1:/root/logs "$RESULTS_DIR/client_logs" 2>/dev/null || true
+# Do not consolidate logs to results — tests will use the files under the shared logs mount.
+# Logs are already available under ./logs on the host via the shared volume.
 
 # Cleanup
 docker-compose -f docker/docker-compose.yml down

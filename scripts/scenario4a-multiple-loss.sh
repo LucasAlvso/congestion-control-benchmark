@@ -13,8 +13,8 @@ echo "Running Scenario 4a: Multiple clients with packet loss (with captures)"
 # Generate test file if needed
 ./scripts/generate-test-file.sh 200MB
 
-# Start server and client containers
-docker-compose -f docker/docker-compose.yml up --build -d server client1 client2 client3
+# Start server and client containers (export SCENARIO so containers receive it via docker-compose)
+SCENARIO="$SCENARIO_NAME" docker-compose -f docker/docker-compose.yml up --build -d server client1 client2 client3
 sleep 3
 
 # Start captures on server and clients
@@ -61,12 +61,13 @@ docker exec tcp-client3 /root/scripts/manage_capture.sh stop "$SCENARIO_NAME" cl
 docker exec tcp-server /root/scripts/manage_capture.sh stop "$SCENARIO_NAME" server || true
 
 
-# Copy logs & graphs from containers
-mkdir -p "$RESULTS_DIR/server_logs" "$RESULTS_DIR/client1_logs" "$RESULTS_DIR/client2_logs" "$RESULTS_DIR/client3_logs"
-docker cp tcp-server:/root/logs "$RESULTS_DIR/server_logs" 2>/dev/null || true
-docker cp tcp-client1:/root/logs "$RESULTS_DIR/client1_logs" 2>/dev/null || true
-docker cp tcp-client2:/root/logs "$RESULTS_DIR/client2_logs" 2>/dev/null || true
-docker cp tcp-client3:/root/logs "$RESULTS_DIR/client3_logs" 2>/dev/null || true
+# Do not consolidate logs to results — tests will use the files under the shared logs mount.
+# Instead, write scenario & container marker files inside each container's logs so the
+# in-container logger can include the metadata in connection JSON files.
+docker exec tcp-server /bin/sh -c "mkdir -p /root/logs/${SCENARIO_NAME} && printf '%s\n' \"${SCENARIO_NAME}\" > /root/logs/${SCENARIO_NAME}/.scenario && printf '%s\n' tcp-server > /root/logs/${SCENARIO_NAME}/.container_name" 2>/dev/null || true
+docker exec tcp-client1 /bin/sh -c "mkdir -p /root/logs/${SCENARIO_NAME} && printf '%s\n' \"${SCENARIO_NAME}\" > /root/logs/${SCENARIO_NAME}/.scenario && printf '%s\n' tcp-client1 > /root/logs/${SCENARIO_NAME}/.container_name" 2>/dev/null || true
+docker exec tcp-client2 /bin/sh -c "mkdir -p /root/logs/${SCENARIO_NAME} && printf '%s\n' \"${SCENARIO_NAME}\" > /root/logs/${SCENARIO_NAME}/.scenario && printf '%s\n' tcp-client2 > /root/logs/${SCENARIO_NAME}/.container_name" 2>/dev/null || true
+docker exec tcp-client3 /bin/sh -c "mkdir -p /root/logs/${SCENARIO_NAME} && printf '%s\n' \"${SCENARIO_NAME}\" > /root/logs/${SCENARIO_NAME}/.scenario && printf '%s\n' tcp-client3 > /root/logs/${SCENARIO_NAME}/.container_name" 2>/dev/null || true
 
 # Cleanup
 docker-compose -f docker/docker-compose.yml down

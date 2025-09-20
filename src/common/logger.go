@@ -4,6 +4,8 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
+	"path/filepath"
+	"strings"
 	"time"
 )
 
@@ -17,32 +19,85 @@ type ConnectionLog struct {
 	Throughput    float64   `json:"throughput_bps"`
 	RemoteAddr    string    `json:"remote_addr"`
 	Operation     string    `json:"operation"`
+	Scenario      string    `json:"scenario,omitempty"`
+	ContainerName string    `json:"container_name,omitempty"`
 	TCPSamples    []TCPInfo `json:"tcp_samples,omitempty"` // TCP_INFO samples collected during connection
 }
 
 // Logger handles connection logging
 type Logger struct {
-	logDir string
+	logDir        string
+	scenario      string
+	containerName string
 }
 
 // NewLogger creates a new logger instance
 func NewLogger(logDir string) *Logger {
 	// Create log directory if it doesn't exist
 	os.MkdirAll(logDir, 0755)
-	return &Logger{logDir: logDir}
+
+	// Read scenario and container name from environment if provided.
+	// Fallback for container name: use HOSTNAME if set.
+	scenario := os.Getenv("SCENARIO")
+	container := os.Getenv("CONTAINER_NAME")
+	if container == "" {
+		container = os.Getenv("HOSTNAME")
+	}
+
+	// If scenario wasn't provided via env, try reading a marker file inside the log dir.
+	if scenario == "" {
+		if b, err := os.ReadFile(filepath.Join(logDir, ".scenario")); err == nil {
+			scenario = strings.TrimSpace(string(b))
+		}
+	}
+
+	// If container name still empty, try reading a marker file inside the log dir.
+	if container == "" {
+		if b, err := os.ReadFile(filepath.Join(logDir, ".container_name")); err == nil {
+			container = strings.TrimSpace(string(b))
+		}
+	}
+
+	return &Logger{
+		logDir:        logDir,
+		scenario:      scenario,
+		containerName: container,
+	}
 }
 
 // LogConnection saves connection metrics to a JSON file
 func (l *Logger) LogConnection(log *ConnectionLog) error {
+	// Ensure scenario/container metadata is present in the log (prefer explicit values on the struct)
+	if log.Scenario == "" {
+		log.Scenario = l.scenario
+	}
+	if log.ContainerName == "" {
+		log.ContainerName = l.containerName
+	}
+
 	// Calculate derived metrics
 	log.Duration = log.EndTime.Sub(log.StartTime).Seconds()
 	if log.Duration > 0 {
 		log.Throughput = float64(log.BytesSent+log.BytesReceived) / log.Duration
 	}
 
-	// Create filename with timestamp
-	filename := fmt.Sprintf("%s/connection_%s.json",
+	// Create filename with timestamp — include scenario and container name (sanitized)
+	sanitize := func(s string) string {
+		if s == "" {
+			return "unknown"
+		}
+		// replace characters that could break filenames
+		s = strings.ReplaceAll(s, " ", "_")
+		s = strings.ReplaceAll(s, "/", "_")
+		s = strings.ReplaceAll(s, ":", "_")
+		s = strings.ReplaceAll(s, "\\", "_")
+		return s
+	}
+
+	filename := fmt.Sprintf("%s/connection_%s_%s_%s.json",
 		l.logDir,
+		sanitize(log.Scenario),
+		sanitize(log.ContainerName),
 		log.StartTime.Format("20060102_150405"))
 
 	// Write to file
