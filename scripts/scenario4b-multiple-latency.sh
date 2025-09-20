@@ -28,9 +28,9 @@ sleep 0.2
 docker exec tcp-client3 /root/scripts/manage_capture.sh start "$SCENARIO_NAME" client 3 || true
 
 # Run clients concurrently with variable latency applied inside each client container
-docker exec -d tcp-client1 /bin/sh -c "tc qdisc del dev eth0 root 2>/dev/null || true; for i in 1 2 3; do tc qdisc add dev eth0 root netem delay 15ms 3ms distribution normal && break || sleep 1; done && timeout 1200s sh -c \"echo 'put test-files/test_200MB.bin' | ./client --host=server --port=8080 --log-dir=./logs\""
-docker exec -d tcp-client2 /bin/sh -c "tc qdisc del dev eth0 root 2>/dev/null || true; for i in 1 2 3; do tc qdisc add dev eth0 root netem delay 15ms 3ms distribution normal && break || sleep 1; done && timeout 1200s sh -c \"echo 'put test-files/test_200MB.bin' | ./client --host=server --port=8080 --log-dir=./logs\""
-docker exec -d tcp-client3 /bin/sh -c "tc qdisc del dev eth0 root 2>/dev/null || true; for i in 1 2 3; do tc qdisc add dev eth0 root netem delay 15ms 3ms distribution normal && break || sleep 1; done && timeout 1200s sh -c \"echo 'put test-files/test_200MB.bin' | ./client --host=server --port=8080 --log-dir=./logs\""
+docker exec -d tcp-client1 /bin/sh -c "tc qdisc del dev eth0 root 2>/dev/null || true; for i in 1 2 3; do tc qdisc add dev eth0 root netem delay 10ms 4ms distribution normal && break || sleep 1; done && timeout 1200s sh -c \"echo 'put test-files/test_200MB.bin' | ./client --host=server --port=8080 --log-dir=./logs\""
+docker exec -d tcp-client2 /bin/sh -c "tc qdisc del dev eth0 root 2>/dev/null || true; for i in 1 2 3; do tc qdisc add dev eth0 root netem delay 10ms 4ms distribution normal && break || sleep 1; done && timeout 1200s sh -c \"echo 'put test-files/test_200MB.bin' | ./client --host=server --port=8080 --log-dir=./logs\""
+docker exec -d tcp-client3 /bin/sh -c "tc qdisc del dev eth0 root 2>/dev/null || true; for i in 1 2 3; do tc qdisc add dev eth0 root netem delay 10ms 4ms distribution normal && break || sleep 1; done && timeout 1200s sh -c \"echo 'put test-files/test_200MB.bin' | ./client --host=server --port=8080 --log-dir=./logs\""
 
 # Wait for clients to finish (timeout guard)
 TIMEOUT=600
