@@ -49,9 +49,17 @@ if [[ "$ACTION" == "start" ]]; then
     rm -f "$PCAP_PATH" || true
   fi
 
-  # Start tcpdump capturing only TCP packets on all interfaces.
+  # Start tcpdump capturing only TCP packets on the docker bridge interface.
   # Use -s 0 to capture full packets, -n to avoid name resolution, -U for packet-buffered output.
-  nohup tcpdump -i any -s 0 -n -U tcp -w "$PCAP_PATH" >/dev/null 2>&1 &
+  # Capture both directions:
+  # - when run for a client role, capture traffic to/from the server
+  # - when run for the server role, capture traffic to/from all clients
+  if [[ "$ROLE" == "server" ]]; then
+    FILTER='tcp and (host client1 or host client2 or host client3 or host client4)'
+  else
+    FILTER='tcp and host server'
+  fi
+  nohup tcpdump -i eth0 -s 0 -U "$FILTER" -w "$PCAP_PATH" >/dev/null 2>&1 &
   PID=$!
 
   # Save PID and PCAP path in pidfile (PID on first line, PCAP path on second).
