@@ -5,8 +5,6 @@
 set -e
 
 SCENARIO_NAME="scenario2-multiple-clean"
-RESULTS_DIR="./results/$SCENARIO_NAME"
-mkdir -p "$RESULTS_DIR"
 
 echo "Running Scenario 2: Multiple clients, clean network (with captures)"
 
@@ -73,4 +71,4 @@ docker exec tcp-server /root/scripts/manage_capture.sh stop "$SCENARIO_NAME" ser
 # Cleanup
 docker-compose -f docker/docker-compose.yml down
 
-echo "Scenario 2 completed. Results in $RESULTS_DIR"
+echo "Scenario 2 completed."

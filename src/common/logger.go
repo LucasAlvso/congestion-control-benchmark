@@ -94,11 +94,17 @@ func (l *Logger) LogConnection(log *ConnectionLog) error {
 		return s
 	}
 
-	filename := fmt.Sprintf("%s/connection_%s_%s_%s.json",
-		l.logDir,
-		sanitize(log.Scenario),
+	// Ensure we write logs under the per-scenario folder inside the shared log directory.
+	scenarioName := sanitize(log.Scenario)
+	scenarioDir := filepath.Join(l.logDir, scenarioName)
+	if err := os.MkdirAll(scenarioDir, 0755); err != nil {
+		return fmt.Errorf("failed to create scenario log dir: %v", err)
+	}
+
+	filename := filepath.Join(scenarioDir, fmt.Sprintf("connection_%s_%s_%s.json",
+		scenarioName,
 		sanitize(log.ContainerName),
-		log.StartTime.Format("20060102_150405"))
+		log.StartTime.Format("20060102_150405")))
 
 	// Write to file
 	file, err := os.Create(filename)

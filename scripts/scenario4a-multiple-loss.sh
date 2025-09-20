@@ -5,8 +5,6 @@
 set -e
 
 SCENARIO_NAME="scenario4a-multiple-loss"
-RESULTS_DIR="./results/$SCENARIO_NAME"
-mkdir -p "$RESULTS_DIR"
 
 echo "Running Scenario 4a: Multiple clients with packet loss (with captures)"
 
@@ -72,4 +70,4 @@ docker exec tcp-client3 /bin/sh -c "mkdir -p /root/logs/${SCENARIO_NAME} && prin
 # Cleanup
 docker-compose -f docker/docker-compose.yml down
 
-echo "Scenario 4a completed. Results in $RESULTS_DIR"
+echo "Scenario 4a completed."

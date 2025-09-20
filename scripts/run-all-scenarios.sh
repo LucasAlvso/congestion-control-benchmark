@@ -5,15 +5,12 @@
 set -e
 
 TIMESTAMP=$(date +"%Y%m%d_%H%M%S")
-MASTER_RESULTS_DIR="./results/full_test_$TIMESTAMP"
 
 echo "TCP Congestion Control Test Suite"
 echo "================================="
 echo "Starting full test run at $(date)"
-echo "Results will be saved to: $MASTER_RESULTS_DIR"
+echo "Results will be saved to the logs folder"
 echo ""
-
-mkdir -p $MASTER_RESULTS_DIR
 
 # Make all scenario scripts executable
 chmod +x scripts/scenario*.sh
@@ -43,43 +40,7 @@ echo "Running Scenario 4b..."
 ./scripts/scenario4b-multiple-latency.sh
 echo ""
 
-# Consolidate all results safely (explicit scenario directories)
-echo "Consolidating results..."
-mkdir -p "$MASTER_RESULTS_DIR/scenario1-single-clean"
-mkdir -p "$MASTER_RESULTS_DIR/scenario2-multiple-clean"
-mkdir -p "$MASTER_RESULTS_DIR/scenario3a-single-loss"
-mkdir -p "$MASTER_RESULTS_DIR/scenario3b-single-latency"
-mkdir -p "$MASTER_RESULTS_DIR/scenario4a-multiple-loss"
-mkdir -p "$MASTER_RESULTS_DIR/scenario4b-multiple-latency"
-cp -r ./results/scenario1-single-clean "$MASTER_RESULTS_DIR/" || true
-cp -r ./results/scenario2-multiple-clean "$MASTER_RESULTS_DIR/" || true
-cp -r ./results/scenario3a-single-loss "$MASTER_RESULTS_DIR/" || true
-cp -r ./results/scenario3b-single-latency "$MASTER_RESULTS_DIR/" || true
-cp -r ./results/scenario4a-multiple-loss "$MASTER_RESULTS_DIR/" || true
-cp -r ./results/scenario4b-multiple-latency "$MASTER_RESULTS_DIR/" || true
-
-# Generate summary
-cat > $MASTER_RESULTS_DIR/test_summary.txt <<EOF
-TCP Congestion Control Test Results
-==================================
-Test completed: $(date)
-Duration: Full test suite
-
-Scenarios executed:
-- Scenario 1: Single client, clean network
-- Scenario 2: Multiple clients (3), clean network
-- Scenario 3a: Single client with packet loss (0.1%)
-- Scenario 3b: Single client with variable latency (50ms ±20ms)
-- Scenario 4a: Multiple clients (3) with packet loss (0.1%)
-- Scenario 4b: Multiple clients (3) with variable latency (50ms ±20ms)
-
-Test file: 200MB
-
-Results location: $MASTER_RESULTS_DIR
-Individual scenario results: $MASTER_RESULTS_DIR/scenario*/
-EOF
-
 echo "================================="
 echo "All scenarios completed successfully!"
-echo "Results consolidated in: $MASTER_RESULTS_DIR"
+echo "Results consolidated in logs"
 echo "================================="

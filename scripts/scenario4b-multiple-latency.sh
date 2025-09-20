@@ -5,8 +5,6 @@
 set -e
 
 SCENARIO_NAME="scenario4b-multiple-latency"
-RESULTS_DIR="./results/$SCENARIO_NAME"
-mkdir -p "$RESULTS_DIR"
 
 echo "Running Scenario 4b: Multiple clients with variable latency (with captures)"
 
@@ -71,4 +69,4 @@ docker exec tcp-server /root/scripts/manage_capture.sh stop "$SCENARIO_NAME" ser
 # Cleanup
 docker-compose -f docker/docker-compose.yml down
 
-echo "Scenario 4b completed. Results in $RESULTS_DIR"
+echo "Scenario 4b completed."
