@@ -54,12 +54,10 @@ if [[ "$ACTION" == "start" ]]; then
   # Capture both directions:
   # - when run for a client role, capture traffic to/from the server
   # - when run for the server role, capture traffic to/from all clients
-  if [[ "$ROLE" == "server" ]]; then
-    FILTER='tcp and (host client1 or host client2 or host client3 or host client4)'
-  else
-    FILTER='tcp and host server'
-  fi
-  nohup tcpdump -i eth0 -s 0 -U "$FILTER" -w "$PCAP_PATH" >/dev/null 2>&1 &
+  # Capture traffic to/from the HTTP port to reliably record server <-> client flows.
+  # Using "tcp port 8080" avoids relying on container name resolution inside the container.
+  FILTER='tcp port 8080'
+  nohup tcpdump -i eth0 -s 0 -U -n -w "$PCAP_PATH" "$FILTER" >/dev/null 2>&1 &
   PID=$!
 
   # Save PID and PCAP path in pidfile (PID on first line, PCAP path on second).
