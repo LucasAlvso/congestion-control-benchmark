@@ -11,17 +11,24 @@ import (
 
 // ConnectionLog represents a connection's performance metrics
 type ConnectionLog struct {
-	StartTime     time.Time `json:"start_time"`
-	EndTime       time.Time `json:"end_time"`
-	BytesSent     int64     `json:"bytes_sent"`
-	BytesReceived int64     `json:"bytes_received"`
-	Duration      float64   `json:"duration_seconds"`
-	Throughput    float64   `json:"throughput_bps"`
-	RemoteAddr    string    `json:"remote_addr"`
-	Operation     string    `json:"operation"`
-	Scenario      string    `json:"scenario,omitempty"`
-	ContainerName string    `json:"container_name,omitempty"`
-	TCPSamples    []TCPInfo `json:"tcp_samples,omitempty"` // TCP_INFO samples collected during connection
+	StartTime            time.Time `json:"start_time"`
+	EndTime              time.Time `json:"end_time"`
+	BytesSent            int64     `json:"bytes_sent"`
+	BytesReceived        int64     `json:"bytes_received"`
+	Duration             float64   `json:"duration_seconds"`
+	Throughput           float64   `json:"throughput_bps"`
+	RemoteAddr           string    `json:"remote_addr"`
+	Operation            string    `json:"operation"`
+	Scenario             string    `json:"scenario,omitempty"`
+	ContainerName        string    `json:"container_name,omitempty"`
+	InitialRTTMs         float64   `json:"initial_rtt_ms,omitempty"`
+	FinalRTTMs           float64   `json:"final_rtt_ms,omitempty"`
+	InitialCwnd          uint32    `json:"initial_cwnd,omitempty"`
+	FinalCwnd            uint32    `json:"final_cwnd,omitempty"`
+	InitialSsthresh      uint32    `json:"initial_ssthresh,omitempty"`
+	FinalSsthresh        uint32    `json:"final_ssthresh,omitempty"`
+	TotalRetransmissions uint32    `json:"total_retransmissions,omitempty"`
+	TCPSamples           []TCPInfo `json:"tcp_samples,omitempty"` // TCP_INFO samples collected during connection
 }
 
 // Logger handles connection logging
@@ -79,6 +86,20 @@ func (l *Logger) LogConnection(log *ConnectionLog) error {
 	log.Duration = log.EndTime.Sub(log.StartTime).Seconds()
 	if log.Duration > 0 {
 		log.Throughput = float64(log.BytesSent+log.BytesReceived) / log.Duration
+	}
+
+	// Populate TCP summary metrics if TCP samples were collected
+	if len(log.TCPSamples) > 0 {
+		first := log.TCPSamples[0]
+		last := log.TCPSamples[len(log.TCPSamples)-1]
+
+		log.InitialRTTMs = float64(first.RTT) / 1000.0
+		log.FinalRTTMs = float64(last.RTT) / 1000.0
+		log.InitialCwnd = first.SndCwnd
+		log.FinalCwnd = last.SndCwnd
+		log.InitialSsthresh = first.SndSsthresh
+		log.FinalSsthresh = last.SndSsthresh
+		log.TotalRetransmissions = last.TotalRetrans
 	}
 
 	// Create filename with timestamp — include scenario and container name (sanitized)
