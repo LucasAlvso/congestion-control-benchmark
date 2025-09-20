@@ -2,7 +2,6 @@ package main
 
 import (
 	"bufio"
-	"encoding/binary"
 	"flag"
 	"fmt"
 	"io"
@@ -16,7 +15,6 @@ import (
 )
 
 func main() {
-	// Command line flags
 	host := flag.String("host", "localhost", "Server host")
 	port := flag.String("port", "8080", "Server port")
 	logDir := flag.String("log-dir", "./logs", "Log directory")
@@ -134,13 +132,21 @@ func handlePut(address string, filename string, logger *common.Logger) {
 	tcpCollector := common.NewTCPInfoCollector()
 	tcpCollector.CollectSample(conn)
 
-	// Prepare header: payload = [filename_len:4][filename][filedata]
-filenameBytes := []byte(filename)
-payloadLen := uint32(4 + len(filenameBytes) + int(filesize))
+	filenameBytes := []byte(filename)
+	shouldSample := filesize > 1024*1024
+	done := make(chan bool)
+
+	// Validate payload fits in uint32
+	if filesize > int64(^uint32(0))-int64(4+len(filenameBytes)) {
+		fmt.Printf("File %s is too large to send\n", filename)
+		if shouldSample {
+			close(done)
+		}
+		return
+	}
+	payloadLen := uint32(4 + len(filenameBytes) + int(filesize))
 
 	// Start sampling goroutine for large files
-	done := make(chan bool)
-	shouldSample := filesize > 1024*1024
 	if shouldSample {
 		go func() {
 			ticker := time.NewTicker(100 * time.Millisecond) // Sample every 100ms
@@ -157,72 +163,32 @@ payloadLen := uint32(4 + len(filenameBytes) + int(filesize))
 		}()
 	}
 
-	// Send opcode and payload length
-	if err := binary.Write(conn, binary.BigEndian, protocol.OpPut); err != nil {
-		fmt.Printf("Failed to write opcode: %v\n", err)
+	// Read entire file into memory
+	fileData := make([]byte, filesize)
+	if _, err := f.Seek(0, io.SeekStart); err != nil {
+		fmt.Printf("Failed to seek file: %v\n", err)
 		if shouldSample {
 			close(done)
 		}
 		return
 	}
-	if err := binary.Write(conn, binary.BigEndian, payloadLen); err != nil {
-		fmt.Printf("Failed to write payload length: %v\n", err)
-		if shouldSample {
-			close(done)
-		}
-		return
-	}
-
-	// Send filename length and filename bytes
-	if err := binary.Write(conn, binary.BigEndian, uint32(len(filenameBytes))); err != nil {
-		fmt.Printf("Failed to write filename length: %v\n", err)
-		if shouldSample {
-			close(done)
-		}
-		return
-	}
-	if _, err := conn.Write(filenameBytes); err != nil {
-		fmt.Printf("Failed to write filename: %v\n", err)
+	if _, err := io.ReadFull(f, fileData); err != nil {
+		fmt.Printf("Failed to read file into memory: %v\n", err)
 		if shouldSample {
 			close(done)
 		}
 		return
 	}
 
-	// Stream file content in chunks and show progress
-	const chunkSize = 64 * 1024
-	var written int64 = 0
-	total := int64(payloadLen) - int64(4+len(filenameBytes)) // file size
-
-	fmt.Printf("Uploading %s (%d bytes)\n", filename, filesize)
-	for {
-		buf := make([]byte, chunkSize)
-		n, readErr := f.Read(buf)
-		if n > 0 {
-			wn, writeErr := conn.Write(buf[:n])
-			if writeErr != nil {
-				fmt.Printf("\nFailed to send file chunk: %v\n", writeErr)
-				if shouldSample {
-					close(done)
-				}
-				return
-			}
-			written += int64(wn)
-			percent := (float64(written) / float64(total)) * 100.0
-			fmt.Printf("\rProgress: %d/%d bytes (%.1f%%)", written, total, percent)
+	// Create and send PUT frame in a single transfer
+	frame := protocol.CreatePutFrame(filename, fileData)
+	if err := protocol.WriteFrame(conn, frame); err != nil {
+		fmt.Printf("Failed to send PUT frame: %v\n", err)
+		if shouldSample {
+			close(done)
 		}
-		if readErr == io.EOF {
-			break
-		}
-		if readErr != nil {
-			fmt.Printf("\nFailed to read file: %v\n", readErr)
-			if shouldSample {
-				close(done)
-			}
-			return
-		}
+		return
 	}
-	fmt.Println("\nUpload complete")
 
 	// Collect sample after sending
 	tcpCollector.CollectSample(conn)

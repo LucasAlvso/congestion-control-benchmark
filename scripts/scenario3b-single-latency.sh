@@ -36,13 +36,10 @@ docker exec tcp-client1 /bin/sh -c "tc qdisc del dev eth0 root 2>/dev/null || tr
 docker exec tcp-client1 /root/scripts/manage_capture.sh stop "$SCENARIO_NAME" client || true
 docker exec tcp-server /root/scripts/manage_capture.sh stop "$SCENARIO_NAME" server || true
 
-# Generate graphs
-docker exec tcp-server /root/scripts/generate_graphs.sh "$SCENARIO_NAME" || true
-
 # Copy logs & graphs
 mkdir -p "$RESULTS_DIR/server_logs" "$RESULTS_DIR/client_logs"
-docker cp tcp-server:/root/logs "$RESULTS_DIR/server_logs" 2>/dev/null || true
-docker cp tcp-client1:/root/logs "$RESULTS_DIR/client_logs" 2>/dev/null || true
+docker cp tcp-server:/root/logs/${SCENARIO_NAME} "$RESULTS_DIR/server_logs" 2>/dev/null || true
+docker cp tcp-client1:/root/logs/${SCENARIO_NAME} "$RESULTS_DIR/client_logs" 2>/dev/null || true
 
 # Cleanup
 docker-compose -f docker/docker-compose.yml down

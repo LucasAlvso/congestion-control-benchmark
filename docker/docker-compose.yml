@@ -7,7 +7,7 @@ services:
     ports:
       - "8080:8080"
     volumes:
-      - ../logs:/root/logs
+      - ../logs/server:/root/logs
       - server_files:/root/files
     networks:
       - tcp-network
@@ -20,7 +20,7 @@ services:
     depends_on:
       - server
     volumes:
-      - ../logs:/root/logs
+      - ../logs/client1:/root/logs
       - ../test-files:/root/test-files
     networks:
       - tcp-network
@@ -37,7 +37,7 @@ services:
     depends_on:
       - server
     volumes:
-      - ../logs:/root/logs
+      - ../logs/client2:/root/logs
       - ../test-files:/root/test-files
     networks:
       - tcp-network
@@ -54,7 +54,7 @@ services:
     depends_on:
       - server
     volumes:
-      - ../logs:/root/logs
+      - ../logs/client3:/root/logs
       - ../test-files:/root/test-files
     networks:
       - tcp-network
@@ -71,7 +71,7 @@ services:
     depends_on:
       - server
     volumes:
-      - ../logs:/root/logs
+      - ../logs/client4:/root/logs
       - ../test-files:/root/test-files
     networks:
       - tcp-network
