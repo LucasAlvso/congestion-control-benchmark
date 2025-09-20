@@ -17,6 +17,8 @@ WORKDIR /root/
 
 COPY --from=builder /app/server .
 COPY scripts /root/scripts
+RUN chmod -R +x /root/scripts
+
 
 # Create python venv and install plotting packages inside it
 RUN python3 -m venv /opt/venv && /opt/venv/bin/pip install --no-cache-dir pandas matplotlib
