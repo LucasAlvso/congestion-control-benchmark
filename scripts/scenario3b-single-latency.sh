@@ -38,8 +38,8 @@ docker exec tcp-server /root/scripts/manage_capture.sh stop "$SCENARIO_NAME" ser
 
 # Copy logs & graphs
 mkdir -p "$RESULTS_DIR/server_logs" "$RESULTS_DIR/client_logs"
-docker cp tcp-server:/root/logs/${SCENARIO_NAME} "$RESULTS_DIR/server_logs" 2>/dev/null || true
-docker cp tcp-client1:/root/logs/${SCENARIO_NAME} "$RESULTS_DIR/client_logs" 2>/dev/null || true
+docker cp tcp-server:/root/logs "$RESULTS_DIR/server_logs" 2>/dev/null || true
+docker cp tcp-client1:/root/logs "$RESULTS_DIR/client_logs" 2>/dev/null || true
 
 # Cleanup
 docker-compose -f docker/docker-compose.yml down

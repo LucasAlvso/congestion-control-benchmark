@@ -33,10 +33,11 @@ docker exec tcp-client1 bash -c "timeout 900s bash -c \"echo 'put test-files/tes
 docker exec tcp-client1 /root/scripts/manage_capture.sh stop "$SCENARIO_NAME" client || true
 docker exec tcp-server /root/scripts/manage_capture.sh stop "$SCENARIO_NAME" server || true
 
+
 # Copy logs & graphs from containers (logs are also mounted to ../logs, but keep cp for compatibility)
 mkdir -p "$RESULTS_DIR/server_logs" "$RESULTS_DIR/client_logs"
-docker cp tcp-server:/root/logs/${SCENARIO_NAME} "$RESULTS_DIR/server_logs" 2>/dev/null || true
-docker cp tcp-client1:/root/logs/${SCENARIO_NAME} "$RESULTS_DIR/client_logs" 2>/dev/null || true
+docker cp tcp-server:/root/logs "$RESULTS_DIR/server_logs" 2>/dev/null || true
+docker cp tcp-client1:/root/logs "$RESULTS_DIR/client_logs" 2>/dev/null || true
 
 # Cleanup
 docker-compose -f docker/docker-compose.yml down
