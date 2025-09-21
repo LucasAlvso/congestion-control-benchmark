@@ -26,4 +26,5 @@ RUN python3 -m venv /opt/venv && /opt/venv/bin/pip install --no-cache-dir pandas
 # Create directories
 RUN mkdir -p logs test-files
 
-CMD ["./client", "--host=server", "--port=8080", "--log-dir=./logs"]
+# Don't auto-start client - let the scenario scripts control execution
+# CMD ["./client", "--host=server", "--port=8080", "--log-dir=./logs"]

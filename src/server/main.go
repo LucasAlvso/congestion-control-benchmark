@@ -1,7 +1,6 @@
 package main
 
 import (
-	"context"
 	"flag"
 	"fmt"
 	"io/ioutil"
@@ -10,7 +9,6 @@ import (
 	"os/signal"
 	"path/filepath"
 	"strings"
-	"sync"
 	"syscall"
 	"time"
 
@@ -49,52 +47,34 @@ func main() {
 	fmt.Printf("Log directory: %s\n", *logDir)
 
 	// Handle graceful shutdown
-	ctx, cancel := context.WithCancel(context.Background())
-	var wg sync.WaitGroup
 	sigChan := make(chan os.Signal, 1)
 	signal.Notify(sigChan, syscall.SIGINT, syscall.SIGTERM)
 	go func() {
 		<-sigChan
 		fmt.Println("\nShutting down server...")
-		cancel()
 		listener.Close()
+		os.Exit(0)
 	}()
 
 	// Accept connections
-acceptLoop:
 	for {
 		conn, err := listener.Accept()
 		if err != nil {
-			// If context is cancelled, listener was closed as part of shutdown
-			if ctx.Err() != nil {
-				break acceptLoop
-			}
 			fmt.Printf("Failed to accept connection: %v\n", err)
 			continue
 		}
 
 		// Handle connection concurrently
-		wg.Add(1)
-		go handleConnection(ctx, &wg, conn, *fileDir, logger)
+		go handleConnection(conn, *fileDir, logger)
 	}
-
-	wg.Wait()
-	fmt.Println("Server shutdown complete.")
 }
 
-func handleConnection(ctx context.Context, wg *sync.WaitGroup, conn net.Conn, fileDir string, logger *common.Logger) {
-	defer wg.Done()
+func handleConnection(conn net.Conn, fileDir string, logger *common.Logger) {
 	defer conn.Close()
 	startTime := time.Now()
 	remoteAddr := conn.RemoteAddr().String()
 
 	fmt.Printf("New connection from: %s\n", remoteAddr)
-
-	// If the server is shutting down, close the connection to unblock ReadFrame.
-	go func() {
-		<-ctx.Done()
-		conn.Close()
-	}()
 
 	var totalBytesSent, totalBytesReceived int64
 	var lastOperation string = "CONNECT"
@@ -144,7 +124,7 @@ func handleConnection(ctx context.Context, wg *sync.WaitGroup, conn net.Conn, fi
 	endTime := time.Now()
 
 	// Log connection
-	logEntry := &common.ConnectionLog{
+	log := &common.ConnectionLog{
 		StartTime:     startTime,
 		EndTime:       endTime,
 		BytesSent:     totalBytesSent,
@@ -152,10 +132,8 @@ func handleConnection(ctx context.Context, wg *sync.WaitGroup, conn net.Conn, fi
 		RemoteAddr:    remoteAddr,
 		Operation:     lastOperation,
 	}
-	if err := logger.LogConnection(logEntry); err != nil {
-		fmt.Printf("Failed to log connection for %s: %v\n", remoteAddr, err)
-	}
-	logger.PrintSummary(logEntry)
+	logger.LogConnection(log)
+	logger.PrintSummary(log)
 }
 
 func handleListRequest(fileDir string) *protocol.Frame {

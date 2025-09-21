@@ -13,43 +13,71 @@ echo "Running Scenario 4a: Multiple clients with packet loss (with captures)"
 
 # Start server and client containers (export SCENARIO so containers receive it via docker-compose)
 SCENARIO="$SCENARIO_NAME" docker-compose -f docker/docker-compose.yml up --build -d server client1 client2 client3
-sleep 3
+
+# Wait for containers to be fully ready
+echo "Waiting for containers to be ready..."
+sleep 5
 
 # Start captures on server and clients
 docker exec tcp-server /root/scripts/manage_capture.sh start "$SCENARIO_NAME" server || true
 docker exec tcp-client1 /root/scripts/manage_capture.sh start "$SCENARIO_NAME" client 1 || true
 docker exec tcp-client2 /root/scripts/manage_capture.sh start "$SCENARIO_NAME" client 2 || true
 docker exec tcp-client3 /root/scripts/manage_capture.sh start "$SCENARIO_NAME" client 3 || true
+
 # Ensure captures have time to initialize before starting the client transfers
-sleep 0.5
+sleep 2
+
+# Verify containers are ready and test files exist
+echo "Verifying container readiness..."
+docker exec tcp-client1 ls -la /root/test-files/ || echo "Client1 test-files not accessible"
+docker exec tcp-client2 ls -la /root/test-files/ || echo "Client2 test-files not accessible"
+docker exec tcp-client3 ls -la /root/test-files/ || echo "Client3 test-files not accessible"
 
 # Run clients concurrently with packet loss applied inside each client container
-docker exec -d tcp-client1 /bin/sh -c "for i in 1 2 3; do tc qdisc add dev eth0 root netem loss 1% && break || sleep 1; done && timeout 900s sh -c \"echo 'put test-files/test_200MB.bin' | ./client --host=server --port=8080 --log-dir=./logs\""
-docker exec -d tcp-client2 /bin/sh -c "for i in 1 2 3; do tc qdisc add dev eth0 root netem loss 1% && break || sleep 1; done && timeout 900s sh -c \"echo 'put test-files/test_200MB.bin' | ./client --host=server --port=8080 --log-dir=./logs\""
-docker exec -d tcp-client3 /bin/sh -c "for i in 1 2 3; do tc qdisc add dev eth0 root netem loss 1% && break || sleep 1; done && timeout 900s sh -c \"echo 'put test-files/test_200MB.bin' | ./client --host=server --port=8080 --log-dir=./logs\""
+echo "Starting client transfers with packet loss..."
+docker exec -d tcp-client1 /bin/sh -c "cd /root && for i in 1 2 3; do tc qdisc add dev eth0 root netem loss 1% && break || sleep 1; done && timeout 900s bash -c 'echo \"put test-files/test_200MB_scenario4a-multiple-loss_client1.bin\" | ./client --host=server --port=8080 --log-dir=./logs'"
+docker exec -d tcp-client2 /bin/sh -c "cd /root && for i in 1 2 3; do tc qdisc add dev eth0 root netem loss 1% && break || sleep 1; done && timeout 900s bash -c 'echo \"put test-files/test_200MB_scenario4a-multiple-loss_client2.bin\" | ./client --host=server --port=8080 --log-dir=./logs'"
+docker exec -d tcp-client3 /bin/sh -c "cd /root && for i in 1 2 3; do tc qdisc add dev eth0 root netem loss 1% && break || sleep 1; done && timeout 900s bash -c 'echo \"put test-files/test_200MB_scenario4a-multiple-loss_client3.bin\" | ./client --host=server --port=8080 --log-dir=./logs'"
 
-# Wait for clients to finish (timeout guard)
+# Wait for clients to finish by monitoring their logs and processes
+# Use a more robust approach that checks for actual client activity
 TIMEOUT=600
 START=$(date +%s)
+echo "Waiting for client transfers to complete..."
+
 while true; do
   RUNNING=0
+  CLIENTS_ACTIVE=0
+
   for c in tcp-client1 tcp-client2 tcp-client3; do
-    if docker exec "$c" pgrep -f './client' >/dev/null 2>&1; then
-      RUNNING=1
+    # Check if container is still running
+    if docker ps --format "table {{.Names}}" | grep -q "^${c}$"; then
+      RUNNING=$((RUNNING + 1))
+
+      # Check if client process is still active inside container
+      if docker exec "$c" pgrep -f 'client' >/dev/null 2>&1; then
+        CLIENTS_ACTIVE=$((CLIENTS_ACTIVE + 1))
+        echo "Client $c still running (active clients: $CLIENTS_ACTIVE)"
+      fi
     fi
   done
 
-  if [ "$RUNNING" -eq 0 ]; then
+  echo "Containers running: $RUNNING, Active clients: $CLIENTS_ACTIVE"
+
+  # Continue waiting if any clients are still active
+  if [ "$CLIENTS_ACTIVE" -eq 0 ]; then
+    echo "All clients have finished"
     break
   fi
 
   NOW=$(date +%s)
   ELAPSED=$((NOW-START))
   if [ "$ELAPSED" -gt "$TIMEOUT" ]; then
-    echo "Timeout waiting for clients to finish"
+    echo "Timeout waiting for clients to finish after $ELAPSED seconds"
     break
   fi
-  sleep 2
+
+  sleep 5  # Check every 5 seconds instead of 2
 done
 
 # Stop captures
