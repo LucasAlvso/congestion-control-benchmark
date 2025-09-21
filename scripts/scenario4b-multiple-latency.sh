@@ -30,6 +30,9 @@ docker exec tcp-client2 /root/scripts/manage_capture.sh start "$SCENARIO_NAME" c
 sleep 0.2
 docker exec tcp-client3 /root/scripts/manage_capture.sh start "$SCENARIO_NAME" client 3 || true
 
+# Ensure captures have time to initialize before starting the client transfers
+sleep 5
+
 # Verify containers are ready and test files exist
 echo "Verifying container readiness..."
 docker exec tcp-client1 ls -la /root/test-files/ || echo "Client1 test-files not accessible"
@@ -82,6 +85,10 @@ while true; do
 
   sleep 5  # Check every 5 seconds instead of 2
 done
+
+# Add buffer time before stopping captures to ensure all packets are captured
+echo "Waiting additional time to ensure all packets are captured..."
+sleep 3
 
 # Stop captures
 docker exec tcp-client1 /root/scripts/manage_capture.sh stop "$SCENARIO_NAME" client 1 || true
