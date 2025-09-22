@@ -30,6 +30,12 @@ docker exec tcp-client2 /root/scripts/manage_capture.sh start "$SCENARIO_NAME" c
 sleep 0.2
 docker exec tcp-client3 /root/scripts/manage_capture.sh start "$SCENARIO_NAME" client 3 || true
 
+# Write scenario & container marker files before client start so logger can use them
+docker exec tcp-server /bin/sh -c "mkdir -p /root/logs/${SCENARIO_NAME} && printf '%s\n' \"${SCENARIO_NAME}\" > /root/logs/${SCENARIO_NAME}/.scenario && printf '%s\n' tcp-server > /root/logs/${SCENARIO_NAME}/.container_name" 2>/dev/null || true
+docker exec tcp-client1 /bin/sh -c "mkdir -p /root/logs/${SCENARIO_NAME} && printf '%s\n' \"${SCENARIO_NAME}\" > /root/logs/${SCENARIO_NAME}/.scenario && printf '%s\n' tcp-client1 > /root/logs/${SCENARIO_NAME}/.container_name" 2>/dev/null || true
+docker exec tcp-client2 /bin/sh -c "mkdir -p /root/logs/${SCENARIO_NAME} && printf '%s\n' \"${SCENARIO_NAME}\" > /root/logs/${SCENARIO_NAME}/.scenario && printf '%s\n' tcp-client2 > /root/logs/${SCENARIO_NAME}/.container_name" 2>/dev/null || true
+docker exec tcp-client3 /bin/sh -c "mkdir -p /root/logs/${SCENARIO_NAME} && printf '%s\n' \"${SCENARIO_NAME}\" > /root/logs/${SCENARIO_NAME}/.scenario && printf '%s\n' tcp-client3 > /root/logs/${SCENARIO_NAME}/.container_name" 2>/dev/null || true
+
 # Ensure captures have time to initialize before starting the client transfers
 sleep 5
 
@@ -41,9 +47,9 @@ docker exec tcp-client3 ls -la /root/test-files/ || echo "Client3 test-files not
 
 # Run clients concurrently with variable latency applied inside each client container
 echo "Starting client transfers with variable latency..."
-docker exec -d tcp-client1 /bin/sh -c "cd /root && tc qdisc del dev eth0 root 2>/dev/null || true; for i in 1 2 3; do tc qdisc add dev eth0 root netem delay 10ms 4ms distribution normal && break || sleep 1; done && timeout 1200s bash -c 'echo \"put test-files/test_200MB_scenario4b-multiple-latency_client1.bin\" | ./client --host=server --port=8080 --log-dir=./logs'"
-docker exec -d tcp-client2 /bin/sh -c "cd /root && tc qdisc del dev eth0 root 2>/dev/null || true; for i in 1 2 3; do tc qdisc add dev eth0 root netem delay 10ms 4ms distribution normal && break || sleep 1; done && timeout 1200s bash -c 'echo \"put test-files/test_200MB_scenario4b-multiple-latency_client2.bin\" | ./client --host=server --port=8080 --log-dir=./logs'"
-docker exec -d tcp-client3 /bin/sh -c "cd /root && tc qdisc del dev eth0 root 2>/dev/null || true; for i in 1 2 3; do tc qdisc add dev eth0 root netem delay 10ms 4ms distribution normal && break || sleep 1; done && timeout 1200s bash -c 'echo \"put test-files/test_200MB_scenario4b-multiple-latency_client3.bin\" | ./client --host=server --port=8080 --log-dir=./logs'"
+docker exec -d tcp-client1 /bin/sh -c "cd /root && tc qdisc del dev eth0 root 2>/dev/null || true; for i in 1 2 3; do tc qdisc add dev eth0 root netem delay 10ms 4ms && break || sleep 1; done && timeout 1200s bash -c 'echo \"put test-files/test_200MB_scenario4b-multiple-latency_client1.bin\" | ./client --host=server --port=8080 --log-dir=./logs'"
+docker exec -d tcp-client2 /bin/sh -c "cd /root && tc qdisc del dev eth0 root 2>/dev/null || true; for i in 1 2 3; do tc qdisc add dev eth0 root netem delay 10ms 4ms && break || sleep 1; done && timeout 1200s bash -c 'echo \"put test-files/test_200MB_scenario4b-multiple-latency_client2.bin\" | ./client --host=server --port=8080 --log-dir=./logs'"
+docker exec -d tcp-client3 /bin/sh -c "cd /root && tc qdisc del dev eth0 root 2>/dev/null || true; for i in 1 2 3; do tc qdisc add dev eth0 root netem delay 10ms 4ms && break || sleep 1; done && timeout 1200s bash -c 'echo \"put test-files/test_200MB_scenario4b-multiple-latency_client3.bin\" | ./client --host=server --port=8080 --log-dir=./logs'"
 
 # Wait for clients to finish by monitoring their logs and processes
 # Use a more robust approach that checks for actual client activity
@@ -86,9 +92,9 @@ while true; do
   sleep 5  # Check every 5 seconds instead of 2
 done
 
-# Add buffer time before stopping captures to ensure all packets are captured
+# Add buffer time before stopping captures to ensure all packets are captured (increased for latency)
 echo "Waiting additional time to ensure all packets are captured..."
-sleep 3
+sleep 30
 
 # Stop captures
 docker exec tcp-client1 /root/scripts/manage_capture.sh stop "$SCENARIO_NAME" client 1 || true
@@ -96,9 +102,14 @@ docker exec tcp-client2 /root/scripts/manage_capture.sh stop "$SCENARIO_NAME" cl
 docker exec tcp-client3 /root/scripts/manage_capture.sh stop "$SCENARIO_NAME" client 3 || true
 docker exec tcp-server /root/scripts/manage_capture.sh stop "$SCENARIO_NAME" server || true
 
-
 # Do not consolidate logs to results — tests will use the files under the shared logs mount.
-# Logs are already available under ./logs on the host via the shared volume.
+# Instead, write scenario & container marker files inside each container's logs so the
+# in-container logger can include the metadata in connection JSON files.
+docker exec tcp-server /bin/sh -c "mkdir -p /root/logs/${SCENARIO_NAME} && printf '%s\n' \"${SCENARIO_NAME}\" > /root/logs/${SCENARIO_NAME}/.scenario && printf '%s\n' tcp-server > /root/logs/${SCENARIO_NAME}/.container_name" 2>/dev/null || true
+docker exec tcp-client1 /bin/sh -c "mkdir -p /root/logs/${SCENARIO_NAME} && printf '%s\n' \"${SCENARIO_NAME}\" > /root/logs/${SCENARIO_NAME}/.scenario && printf '%s\n' tcp-client1 > /root/logs/${SCENARIO_NAME}/.container_name" 2>/dev/null || true
+docker exec tcp-client2 /bin/sh -c "mkdir -p /root/logs/${SCENARIO_NAME} && printf '%s\n' \"${SCENARIO_NAME}\" > /root/logs/${SCENARIO_NAME}/.scenario && printf '%s\n' tcp-client2 > /root/logs/${SCENARIO_NAME}/.container_name" 2>/dev/null || true
+docker exec tcp-client3 /bin/sh -c "mkdir -p /root/logs/${SCENARIO_NAME} && printf '%s\n' \"${SCENARIO_NAME}\" > /root/logs/${SCENARIO_NAME}/.scenario && printf '%s\n' tcp-client3 > /root/logs/${SCENARIO_NAME}/.container_name" 2>/dev/null || true
+
 
 # Cleanup
 docker-compose -f docker/docker-compose.yml down
