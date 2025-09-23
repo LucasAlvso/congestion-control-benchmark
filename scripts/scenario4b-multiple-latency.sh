@@ -47,9 +47,11 @@ docker exec tcp-client3 ls -la /root/test-files/ || echo "Client3 test-files not
 
 # Run clients concurrently with variable latency applied inside each client container
 echo "Starting client transfers with variable latency..."
-docker exec -d tcp-client1 /bin/sh -c "cd /root && tc qdisc del dev eth0 root 2>/dev/null || true; for i in 1 2 3; do tc qdisc add dev eth0 root netem delay 10ms 4ms && break || sleep 1; done && timeout 1200s bash -c 'echo \"put test-files/test_200MB_scenario4b-multiple-latency_client1.bin\" | ./client --host=server --port=8080 --log-dir=./logs'"
-docker exec -d tcp-client2 /bin/sh -c "cd /root && tc qdisc del dev eth0 root 2>/dev/null || true; for i in 1 2 3; do tc qdisc add dev eth0 root netem delay 10ms 4ms && break || sleep 1; done && timeout 1200s bash -c 'echo \"put test-files/test_200MB_scenario4b-multiple-latency_client2.bin\" | ./client --host=server --port=8080 --log-dir=./logs'"
-docker exec -d tcp-client3 /bin/sh -c "cd /root && tc qdisc del dev eth0 root 2>/dev/null || true; for i in 1 2 3; do tc qdisc add dev eth0 root netem delay 10ms 4ms && break || sleep 1; done && timeout 1200s bash -c 'echo \"put test-files/test_200MB_scenario4b-multiple-latency_client3.bin\" | ./client --host=server --port=8080 --log-dir=./logs'"
+# Apply netem on server as well for bidirectional emulation
+docker exec tcp-server /bin/sh -c "tc qdisc del dev eth0 root 2>/dev/null || true; for i in 1 2 3; do tc qdisc add dev eth0 root netem delay 50ms 10ms && break || sleep 1; done"
+docker exec -d tcp-client1 /bin/sh -c "cd /root && tc qdisc del dev eth0 root 2>/dev/null || true; for i in 1 2 3; do tc qdisc add dev eth0 root netem delay 50ms 10ms && break || sleep 1; done && timeout 1200s bash -c 'echo \"put test-files/test_200MB_scenario4b-multiple-latency_client1.bin\" | ./client --host=server --port=8080 --log-dir=./logs'"
+docker exec -d tcp-client2 /bin/sh -c "cd /root && tc qdisc del dev eth0 root 2>/dev/null || true; for i in 1 2 3; do tc qdisc add dev eth0 root netem delay 50ms 10ms && break || sleep 1; done && timeout 1200s bash -c 'echo \"put test-files/test_200MB_scenario4b-multiple-latency_client2.bin\" | ./client --host=server --port=8080 --log-dir=./logs'"
+docker exec -d tcp-client3 /bin/sh -c "cd /root && tc qdisc del dev eth0 root 2>/dev/null || true; for i in 1 2 3; do tc qdisc add dev eth0 root netem delay 50ms 10ms && break || sleep 1; done && timeout 1200s bash -c 'echo \"put test-files/test_200MB_scenario4b-multiple-latency_client3.bin\" | ./client --host=server --port=8080 --log-dir=./logs'"
 
 # Wait for clients to finish by monitoring their logs and processes
 # Use a more robust approach that checks for actual client activity

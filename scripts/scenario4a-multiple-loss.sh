@@ -35,9 +35,9 @@ docker exec tcp-client3 ls -la /root/test-files/ || echo "Client3 test-files not
 
 # Run clients concurrently with packet loss applied inside each client container
 echo "Starting client transfers with packet loss..."
-docker exec -d tcp-client1 /bin/sh -c "cd /root && for i in 1 2 3; do tc qdisc add dev eth0 root netem loss 1% && break || sleep 1; done && timeout 900s bash -c 'echo \"put test-files/test_200MB_scenario4a-multiple-loss_client1.bin\" | ./client --host=server --port=8080 --log-dir=./logs'"
-docker exec -d tcp-client2 /bin/sh -c "cd /root && for i in 1 2 3; do tc qdisc add dev eth0 root netem loss 1% && break || sleep 1; done && timeout 900s bash -c 'echo \"put test-files/test_200MB_scenario4a-multiple-loss_client2.bin\" | ./client --host=server --port=8080 --log-dir=./logs'"
-docker exec -d tcp-client3 /bin/sh -c "cd /root && for i in 1 2 3; do tc qdisc add dev eth0 root netem loss 1% && break || sleep 1; done && timeout 900s bash -c 'echo \"put test-files/test_200MB_scenario4a-multiple-loss_client3.bin\" | ./client --host=server --port=8080 --log-dir=./logs'"
+docker exec -d tcp-client1 /bin/sh -c "cd /root && for i in 1 2 3; do tc qdisc add dev eth0 root netem loss 5% delay 50ms 10ms && break || sleep 1; done && timeout 900s bash -c 'echo \"put test-files/test_200MB_scenario4a-multiple-loss_client1.bin\" | ./client --host=server --port=8080 --log-dir=./logs'"
+docker exec -d tcp-client2 /bin/sh -c "cd /root && for i in 1 2 3; do tc qdisc add dev eth0 root netem loss 5% delay 50ms 10ms && break || sleep 1; done && timeout 900s bash -c 'echo \"put test-files/test_200MB_scenario4a-multiple-loss_client2.bin\" | ./client --host=server --port=8080 --log-dir=./logs'"
+docker exec -d tcp-client3 /bin/sh -c "cd /root && for i in 1 2 3; do tc qdisc add dev eth0 root netem loss 5% delay 50ms 10ms && break || sleep 1; done && timeout 900s bash -c 'echo \"put test-files/test_200MB_scenario4a-multiple-loss_client3.bin\" | ./client --host=server --port=8080 --log-dir=./logs'"
 
 # Wait for clients to finish by monitoring their logs and processes
 # Use a more robust approach that checks for actual client activity
