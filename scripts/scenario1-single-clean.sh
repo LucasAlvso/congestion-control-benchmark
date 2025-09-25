@@ -24,12 +24,15 @@ docker exec tcp-client1 /root/scripts/manage_capture.sh start "$SCENARIO_NAME" c
 # Ensure captures have time to initialize before starting the client transfer
 sleep 5
 
+# Write scenario marker files for logger metadata
+docker exec tcp-server /bin/sh -c "mkdir -p /root/logs/${SCENARIO_NAME} && printf '%s\n' \"${SCENARIO_NAME}\" > /root/logs/${SCENARIO_NAME}/.scenario && printf '%s\n' tcp-server > /root/logs/${SCENARIO_NAME}/.container_name" 2>/dev/null || true
+docker exec tcp-client1 /bin/sh -c "mkdir -p /root/logs/${SCENARIO_NAME} && printf '%s\n' \"${SCENARIO_NAME}\" > /root/logs/${SCENARIO_NAME}/.scenario && printf '%s\n' tcp-client1 > /root/logs/${SCENARIO_NAME}/.container_name" 2>/dev/null || true
+
 # Run client upload (exec into existing client container) with timeout guard
 docker exec tcp-client1 bash -c "timeout 900s bash -c \"echo 'put test-files/test_200MB.bin' | ./client --host=server --port=8080 --log-dir=./logs\""
 
-# Add buffer time before stopping captures to ensure all packets are captured
-echo "Waiting additional time to ensure all packets are captured..."
-sleep 3
+# Wait until TCP transfers on port 8080 fully quiesce, to avoid stopping captures too early
+TIMEOUT=900 CHECK_INTERVAL=3 STABLE_CYCLES=2 ./scripts/wait_transfers.sh 8080 tcp-client1
 
 # Stop captures
 docker exec tcp-client1 /root/scripts/manage_capture.sh stop "$SCENARIO_NAME" client || true

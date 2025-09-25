@@ -12,8 +12,8 @@ echo "Starting full test run at $(date)"
 echo "Results will be saved to the logs folder"
 echo ""
 
-# Make all scenario scripts executable
-chmod +x scripts/scenario*.sh
+# Make all scripts executable
+chmod +x scripts/*.sh || true
 
 # Run all scenarios
 echo "Running Scenario 1..."
