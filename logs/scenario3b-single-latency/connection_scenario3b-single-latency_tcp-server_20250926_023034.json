@@ -1,0 +1,12 @@
+{
+  "start_time": "2025-09-26T02:30:34.206833592Z",
+  "end_time": "2025-09-26T02:30:40.6586752Z",
+  "bytes_sent": 64,
+  "bytes_received": 209715234,
+  "duration_seconds": 6.451841627,
+  "throughput_bps": 32504718.826694783,
+  "remote_addr": "172.19.0.3:46754",
+  "operation": "PUT",
+  "scenario": "scenario3b-single-latency",
+  "container_name": "tcp-server"
+}

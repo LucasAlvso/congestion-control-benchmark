@@ -18,10 +18,6 @@ bin/
 # Go workspace file
 go.work
 
-# Logs
-logs/
-*.log
-
 # Test files (keep the script but ignore generated files)
 test-files/*.bin
 test-files/*.dat
